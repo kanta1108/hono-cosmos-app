@@ -72,7 +72,7 @@ export default function FavoritesPage() {
                     isLoading?(
                         <p>読み込み中...</p>
                     ):(
-                        <div className=" grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-4 gap-4">
                             {data?.map((fav)=>(
                                 <Card key={fav.id} className="flex justify-between items-center">
                                     <CardContent className="p-0">
