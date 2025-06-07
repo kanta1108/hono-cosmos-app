@@ -1,0 +1,139 @@
+【プロジェクト名】hono-cosmos-app
+【目的】TypeScript + Next.js + Cosmos DB によるお気に入り管理Webアプリの構築
+
+───────────────────────────────────────────────
+■ 技術スタック
+───────────────────────────────────────────────
+- Frontend: Next.js（App Router）
+- Backend API: Next.js API Routes
+- Database: Azure Cosmos DB（NoSQL）
+- 言語: TypeScript
+- テスト: PowerShell + curl / Invoke-RestMethod
+
+───────────────────────────────────────────────
+■ ディレクトリ構成（主要）
+───────────────────────────────────────────────
+hono-cosmos-app/
+├── app/
+│   └── api/
+│       └── favorites/
+│           └── route.ts      ← APIエンドポイント
+├── lib/
+│   └── cosmos.ts             ← Cosmos DBユーティリティ
+├── scripts/
+│   └── test-cosmos.ts        ← 接続確認用（任意）
+├── .env.local                ← 環境変数設定ファイル
+
+───────────────────────────────────────────────
+■ .env.local（Cosmos DB 接続設定）
+───────────────────────────────────────────────
+COSMOS_DB_ENDPOINT=https://<your-db>.documents.azure.com:443/
+COSMOS_DB_KEY=<your-key>
+COSMOS_DB_DATABASE=favorites_db
+COSMOS_DB_CONTAINER=favorites
+
+───────────────────────────────────────────────
+■ Cosmos DBユーティリティ（lib/cosmos.ts）
+───────────────────────────────────────────────
+import { CosmosClient, Container } from "@azure/cosmos";
+
+const endpoint = process.env.COSMOS_DB_ENDPOINT!;
+const key = process.env.COSMOS_DB_KEY!;
+const databaseId = process.env.COSMOS_DB_DATABASE!;
+const containerId = process.env.COSMOS_DB_CONTAINER!;
+
+const client = new CosmosClient({ endpoint, key });
+
+export const getContainer = async (): Promise<Container> => {
+  const { database } = await client.databases.createIfNotExists({ id: databaseId });
+  const { container } = await database.containers.createIfNotExists({ id: containerId });
+  return container;
+};
+
+───────────────────────────────────────────────
+■ APIエンドポイント（app/api/favorites/route.ts）
+───────────────────────────────────────────────
+import { NextRequest, NextResponse } from "next/server";
+import { getContainer } from "@/lib/cosmos";
+
+export async function GET() {
+  const container = await getContainer();
+  const { resources } = await container.items.readAll().fetchAll();
+  return NextResponse.json(resources.map(({ id, title, url }) => ({ id, title, url })));
+}
+
+export async function POST(req: NextRequest) {
+  const data = await req.json();
+  const container = await getContainer();
+  const { resource } = await container.items.create(data);
+  return NextResponse.json(resource);
+}
+
+export async function DELETE(req: NextRequest) {
+  const { id } = await req.json();
+  const container = await getContainer();
+  await container.item(id, id).delete();
+  return NextResponse.json({ success: true });
+}
+
+───────────────────────────────────────────────
+■ Cosmos DB接続確認スクリプト（scripts/test-cosmos.ts）
+───────────────────────────────────────────────
+import * as dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+
+import { CosmosClient } from "@azure/cosmos";
+
+const endpoint = process.env.COSMOS_DB_ENDPOINT!;
+const key = process.env.COSMOS_DB_KEY!;
+const databaseId = process.env.COSMOS_DB_DATABASE!;
+const containerId = process.env.COSMOS_DB_CONTAINER!;
+
+const client = new CosmosClient({ endpoint, key });
+
+async function main() {
+  const { database } = await client.databases.createIfNotExists({ id: databaseId });
+  const { container } = await database.containers.createIfNotExists({ id: containerId });
+
+  await container.items.upsert({
+    id: "test-id",
+    title: "test-title",
+    url: "https://example.com"
+  });
+
+  const { resources } = await container.items.readAll().fetchAll();
+  console.log(resources);
+}
+
+main();
+
+───────────────────────────────────────────────
+■ PowerShellでPOSTする方法（Invoke-RestMethod）
+───────────────────────────────────────────────
+$body = @{
+  id = "abc123"
+  title = "ChatGPT"
+  url = "https://chat.openai.com"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:3000/api/favorites" `
+  -Method POST `
+  -Body $body `
+  -ContentType "application/json"
+
+───────────────────────────────────────────────
+■ 実装済みAPI機能
+───────────────────────────────────────────────
+GET    /api/favorites         → お気に入り一覧取得
+POST   /api/favorites         → お気に入り登録
+DELETE /api/favorites         → お気に入り削除（id指定）
+
+───────────────────────────────────────────────
+■ 今後の予定・展開案
+───────────────────────────────────────────────
+- /favorites/page.tsx で一覧表示と登録フォームを作成
+- 状態管理：Zustand または SWR の導入
+- ユーザー認証（Clerk, Auth0など）
+- 本番デプロイ：Vercel
+
+───────────────────────────────────────────────
