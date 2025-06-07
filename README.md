@@ -14,6 +14,10 @@ pnpm dev
 bun dev
 ```
 
+This project uses the experimental Turbo bundler via the `npm run dev` script
+(`next dev --turbo`). When running in a dev container, this typically shortens
+the compilation time.
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
