@@ -1,4 +1,4 @@
-// app/api/hono/route.ts
+// app/api/favorites/route.ts
 import app from '@/server/hono'
 import { handle } from 'hono/vercel'
 
